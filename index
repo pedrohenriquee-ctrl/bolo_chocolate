@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Custo & Margem — Bolo no Pote</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --paper:#FBF6F1;
+    --paper-2:#F3E6DD;
+    --cocoa:#3A2621;
+    --cocoa-soft:#6E5850;
+    --caramel:#D98A3D;
+    --caramel-deep:#B86E27;
+    --berry:#A8405C;
+    --sage:#5C7A54;
+    --line:#E3D2C6;
+    --white:#FFFDFB;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--cocoa);
+    font-family:'IBM Plex Sans', sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+    padding-bottom:84px;
+  }
+  h1,h2,h3{font-family:'Fraunces', serif; margin:0; font-weight:600;}
+  .mono{font-family:'IBM Plex Mono', monospace;}
+
+  header.top{
+    padding:22px 18px 16px;
+    background:linear-gradient(180deg, var(--cocoa) 0%, #241714 100%);
+    color:var(--paper);
+    position:relative;
+    overflow:hidden;
+  }
+  header.top::after{
+    content:"";
+    position:absolute; right:-30px; top:-30px;
+    width:140px; height:140px; border-radius:50%;
+    background:radial-gradient(circle, rgba(217,138,61,0.35), transparent 70%);
+  }
+  header.top .eyebrow{
+    font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--caramel); font-weight:600; margin-bottom:4px;
+  }
+  header.top h1{font-size:22px; line-height:1.15;}
+  header.top p{margin:6px 0 0; font-size:13px; color:#E3D1C4; max-width:34ch;}
+  .save-badge{
+    position:absolute; top:18px; right:16px; font-size:10px; color:#C9B4A6;
+    font-family:'IBM Plex Mono',monospace; opacity:0; transition:opacity .4s;
+  }
+  .save-badge.show{opacity:1;}
+
+  main{max-width:560px; margin:0 auto; padding:16px 14px 8px;}
+
+  .panel{display:none;}
+  .panel.active{display:block; animation:fadeIn .25s ease;}
+  @keyframes fadeIn{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;}}
+
+  .section-title{
+    display:flex; align-items:baseline; justify-content:space-between;
+    margin:22px 0 10px;
+  }
+  .section-title h2{font-size:18px;}
+  .section-title .tag{
+    font-size:11px; color:var(--cocoa-soft); font-family:'IBM Plex Mono',monospace;
+  }
+  .section-title:first-child{margin-top:4px;}
+
+  .card{
+    background:var(--white);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:14px 14px 12px;
+    margin-bottom:10px;
+  }
+  .card .ing-name{
+    font-weight:600; font-size:14.5px; margin-bottom:10px;
+    display:flex; align-items:center; gap:6px;
+  }
+  .card .ing-note{
+    font-size:11.5px; color:var(--cocoa-soft); font-weight:500;
+    background:rgba(217,138,61,0.1); border-radius:8px; padding:4px 8px;
+    margin:-4px 0 10px; display:inline-block;
+  }
+  .field-row{display:flex; gap:8px; flex-wrap:wrap;}
+  .field{flex:1 1 90px; min-width:90px;}
+  .field label{
+    display:block; font-size:10.5px; color:var(--cocoa-soft);
+    margin-bottom:4px; text-transform:uppercase; letter-spacing:.03em; font-weight:600;
+  }
+  .input-wrap{position:relative;}
+  .input-wrap .prefix{
+    position:absolute; left:9px; top:50%; transform:translateY(-50%);
+    font-size:12.5px; color:var(--cocoa-soft); pointer-events:none;
+    font-family:'IBM Plex Mono',monospace;
+  }
+  input[type=text]{
+    width:100%; border:1.5px solid var(--line); border-radius:10px;
+    padding:9px 10px; font-size:14.5px; font-family:'IBM Plex Mono',monospace;
+    background:var(--paper); color:var(--cocoa);
+    transition:border-color .15s;
+  }
+  input[type=text].with-prefix{padding-left:24px;}
+  input[type=text]:focus{outline:none; border-color:var(--caramel-deep); background:var(--white);}
+
+  .result-line{
+    display:flex; justify-content:space-between; align-items:center;
+    margin-top:10px; padding-top:10px; border-top:1px dashed var(--line);
+    font-size:13.5px;
+  }
+  .result-line .val{font-family:'IBM Plex Mono',monospace; font-weight:600;}
+
+  .totals-card{
+    background:var(--cocoa); color:var(--paper);
+    border-radius:var(--radius); padding:16px;
+    margin:14px 0 6px;
+  }
+  .totals-card .row{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:7px 0; font-size:14px;
+  }
+  .totals-card .row + .row{border-top:1px solid rgba(255,255,255,0.1);}
+  .totals-card .row.hero{
+    font-family:'Fraunces',serif; font-size:20px; font-weight:600; color:var(--caramel);
+  }
+  .totals-card .row .val{font-family:'IBM Plex Mono',monospace;}
+
+  .config-card{margin-bottom:16px;}
+
+  .breakdown{margin:10px 0; font-size:13px;}
+  .breakdown .b-row{
+    display:flex; justify-content:space-between; padding:4px 0;
+    color:var(--cocoa-soft);
+  }
+  .breakdown .b-row .val{font-family:'IBM Plex Mono',monospace; color:var(--cocoa);}
+  .breakdown .b-row.strong{
+    border-top:1px dashed var(--line); margin-top:4px; padding-top:8px;
+    font-weight:700; color:var(--cocoa);
+  }
+  .margin-banner{
+    margin-top:10px; border-radius:12px; padding:10px 12px;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .margin-banner.pos{background:rgba(92,122,84,0.12);}
+  .margin-banner.neg{background:rgba(168,64,92,0.12);}
+  .margin-banner .label{font-size:12px; color:var(--cocoa-soft); font-weight:600;}
+  .margin-banner .amt{font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:16px;}
+  .margin-banner.pos .amt{color:var(--sage);}
+  .margin-banner.neg .amt{color:var(--berry);}
+  .margin-banner .pct{font-size:11.5px; color:var(--cocoa-soft); font-family:'IBM Plex Mono',monospace;}
+
+  .pdf-btn{
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    width:100%; background:var(--caramel); color:var(--cocoa);
+    border:none; border-radius:14px; padding:15px;
+    font-family:'IBM Plex Sans',sans-serif; font-weight:700; font-size:15px;
+    cursor:pointer; margin:18px 0 6px;
+    box-shadow:0 4px 0 var(--caramel-deep);
+    transition:transform .1s, box-shadow .1s;
+  }
+  .pdf-btn:active{transform:translateY(3px); box-shadow:0 1px 0 var(--caramel-deep);}
+  .pdf-btn:disabled{opacity:.6;}
+  .helper-text{font-size:12px; color:var(--cocoa-soft); text-align:center; margin-bottom:10px;}
+
+  .clear-btn{
+    display:block; width:100%; text-align:center; background:none; border:none;
+    color:var(--cocoa-soft); font-size:12px; font-family:'IBM Plex Sans',sans-serif;
+    text-decoration:underline; cursor:pointer; margin:4px 0 14px;
+  }
+
+  nav.tabbar{
+    position:fixed; bottom:0; left:0; right:0;
+    background:var(--white); border-top:1px solid var(--line);
+    display:flex; padding:6px 6px calc(6px + env(safe-area-inset-bottom));
+    z-index:50;
+  }
+  nav.tabbar button{
+    flex:1; background:none; border:none; padding:8px 2px 6px;
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+    color:var(--cocoa-soft); font-family:'IBM Plex Sans',sans-serif;
+    font-size:10.5px; font-weight:600; cursor:pointer; border-radius:10px;
+  }
+  nav.tabbar button .ic{font-size:19px; line-height:1;}
+  nav.tabbar button.active{color:var(--caramel-deep); background:rgba(217,138,61,0.12);}
+
+  ::selection{background:var(--caramel); color:var(--cocoa);}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="eyebrow">Precificação — receita única</div>
+  <h1 id="tabHeadline">Massa</h1>
+  <p id="tabSub">Preencha o preço pago em cada ingrediente da massa de chocolate.</p>
+  <span class="save-badge" id="saveBadge">salvo neste celular ✓</span>
+</header>
+
+<main>
+
+  <!-- ================= MASSA ================= -->
+  <section class="panel active" id="panel-massa">
+    <div class="section-title">
+      <h2>Rendimento da receita</h2>
+    </div>
+    <div class="card">
+      <div class="field-row">
+        <div class="field">
+          <label for="potesProduzidos">Potes produzidos</label>
+          <div class="input-wrap">
+            <input type="text" inputmode="decimal" id="potesProduzidos" class="numeric-input" value="10">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">
+      <h2>Massa de chocolate</h2>
+      <span class="tag">preço pago</span>
+    </div>
+    <div id="massaIngredientes"></div>
+
+    <div class="totals-card">
+      <div class="row"><span>Custo total da massa</span><span class="val" id="massaCustoTotal">—</span></div>
+      <div class="row hero"><span>Custo por pote</span><span class="val" id="massaCustoUnit">—</span></div>
+    </div>
+  </section>
+
+  <!-- ================= RECHEIO ================= -->
+  <section class="panel" id="panel-recheio">
+    <div class="section-title">
+      <h2>Recheio de brigadeiro</h2>
+      <span class="tag">preço pago</span>
+    </div>
+    <div id="recheioIngredientes"></div>
+
+    <div class="totals-card">
+      <div class="row"><span>Custo total do recheio</span><span class="val" id="recheioCustoTotal">—</span></div>
+      <div class="row hero"><span>Custo por pote</span><span class="val" id="recheioCustoUnit">—</span></div>
+    </div>
+  </section>
+
+  <!-- ================= CALDA E DECORAÇÃO ================= -->
+  <section class="panel" id="panel-finalizacao">
+    <div class="section-title">
+      <h2>Calda e decoração</h2>
+      <span class="tag">preço pago</span>
+    </div>
+    <div id="finalizacaoIngredientes"></div>
+
+    <div class="section-title">
+      <h2>Embalagem</h2>
+    </div>
+    <div class="card">
+      <div class="ing-name">🫙 Pote (250 ml), 1 unidade</div>
+      <div class="field-row">
+        <div class="field">
+          <label for="embalagemPote">Preço pago (R$)</label>
+          <div class="input-wrap">
+            <span class="prefix">R$</span>
+            <input type="text" inputmode="decimal" class="numeric-input with-prefix" id="embalagemPote" value="" placeholder="0,00">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="totals-card">
+      <div class="row"><span>Custo total (calda + decoração)</span><span class="val" id="finalizacaoCustoTotal">—</span></div>
+      <div class="row hero"><span>Custo por pote</span><span class="val" id="finalizacaoCustoUnit">—</span></div>
+    </div>
+  </section>
+
+  <!-- ================= PRODUTO FINAL ================= -->
+  <section class="panel" id="panel-final">
+    <div class="section-title">
+      <h2>Parâmetros gerais</h2>
+    </div>
+    <div class="card config-card">
+      <div class="field-row">
+        <div class="field">
+          <label for="comissaoEntregador">Comissão entregador (%)</label>
+          <div class="input-wrap">
+            <input type="text" inputmode="decimal" class="numeric-input" id="comissaoEntregador" value="15">
+          </div>
+        </div>
+        <div class="field">
+          <label for="taxaMaquininha">Taxa maquininha (%)</label>
+          <div class="input-wrap">
+            <input type="text" inputmode="decimal" class="numeric-input" id="taxaMaquininha" value="3.2">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">
+      <h2>Bolo no pote de brigadeiro</h2>
+      <span class="tag">preço de venda</span>
+    </div>
+    <div class="card">
+      <div class="field">
+        <label>Preço de venda (por pote)</label>
+        <div class="input-wrap">
+          <span class="prefix">R$</span>
+          <input type="text" inputmode="decimal" class="numeric-input with-prefix" id="precoVenda" value="" placeholder="0,00">
+        </div>
+      </div>
+      <div class="breakdown">
+        <div class="b-row"><span>Massa</span><span class="val" id="pf-massa">—</span></div>
+        <div class="b-row"><span>Recheio</span><span class="val" id="pf-recheio">—</span></div>
+        <div class="b-row"><span>Calda e decoração</span><span class="val" id="pf-finalizacao">—</span></div>
+        <div class="b-row"><span>Embalagem (pote)</span><span class="val" id="pf-emb">—</span></div>
+        <div class="b-row strong"><span>Custo unitário</span><span class="val" id="pf-custounit">—</span></div>
+        <div class="b-row"><span>Frete (comissão)</span><span class="val" id="pf-frete">—</span></div>
+        <div class="b-row"><span>Taxa maquininha</span><span class="val" id="pf-taxa">—</span></div>
+      </div>
+      <div class="margin-banner" id="pf-banner">
+        <div>
+          <div class="label">Margem de contribuição</div>
+          <div class="pct" id="pf-pct">—</div>
+        </div>
+        <div class="amt" id="pf-margem">—</div>
+      </div>
+    </div>
+
+    <button class="pdf-btn" id="btnPdf">📄 Gerar relatório em PDF</button>
+    <div class="helper-text">Inclui custos diretos por ingrediente, custo total, custo unitário e um gráfico comparando preço, custo e margem.</div>
+    <button class="clear-btn" id="btnClear">Limpar todos os valores salvos neste celular</button>
+  </section>
+
+</main>
+
+<nav class="tabbar">
+  <button class="tab-btn active" data-tab="massa"><span class="ic">🍫</span>Massa</button>
+  <button class="tab-btn" data-tab="recheio"><span class="ic">🥣</span>Recheio</button>
+  <button class="tab-btn" data-tab="finalizacao"><span class="ic">🍬</span>Calda</button>
+  <button class="tab-btn" data-tab="final"><span class="ic">💰</span>Produto final</button>
+</nav>
+
+<script>
+/* ============ ESTADO ============ */
+const state = {
+  massa: {
+    potesProduzidos: 10,
+    ingredientes: [
+      { id:'m1', nome:'Ovos', unidade:'un', usada:3, comprada:30, custoTotal:'' },
+      { id:'m2', nome:'Açúcar', unidade:'g', usada:180, comprada:1000, custoTotal:'', nota:'1 xícara (chá) ≈ 180 g — conversão aproximada' },
+      { id:'m3', nome:'Óleo', unidade:'ml', usada:120, comprada:900, custoTotal:'', nota:'1/2 xícara (chá) ≈ 120 ml — conversão aproximada' },
+      { id:'m4', nome:'Leite', unidade:'ml', usada:120, comprada:1000, custoTotal:'', nota:'1/2 xícara (chá) ≈ 120 ml — conversão aproximada' },
+      { id:'m5', nome:'Farinha de trigo', unidade:'g', usada:120, comprada:1000, custoTotal:'', nota:'1 xícara (chá) ≈ 120 g — conversão aproximada' },
+      { id:'m6', nome:'Cacau em pó 100%', unidade:'g', usada:45, comprada:200, custoTotal:'', nota:'1/2 xícara (chá) ≈ 45 g — conversão aproximada' },
+      { id:'m7', nome:'Fermento em pó', unidade:'g', usada:10, comprada:100, custoTotal:'', nota:'1 colher (sopa) ≈ 10 g — conversão aproximada' },
+    ]
+  },
+  recheio: {
+    ingredientes: [
+      { id:'r1', nome:'Leite condensado', unidade:'lata', usada:2, comprada:1, custoTotal:'', nota:'Preço pago = valor de 1 lata' },
+      { id:'r2', nome:'Creme de leite', unidade:'caixa', usada:1, comprada:1, custoTotal:'', nota:'Preço pago = valor de 1 caixa' },
+      { id:'r3', nome:'Chocolate em pó', unidade:'g', usada:32, comprada:200, custoTotal:'', nota:'4 colheres (sopa) ≈ 32 g — conversão aproximada' },
+      { id:'r4', nome:'Manteiga', unidade:'g', usada:30, comprada:200, custoTotal:'', nota:'2 colheres (sopa) ≈ 30 g — conversão aproximada' },
+    ]
+  },
+  finalizacao: {
+    ingredientes: [
+      { id:'f1', nome:'Leite (calda)', unidade:'ml', usada:120, comprada:1000, custoTotal:'', nota:'1/2 xícara (chá) ≈ 120 ml — conversão aproximada' },
+      { id:'f2', nome:'Leite condensado (calda)', unidade:'g', usada:40, comprada:395, custoTotal:'', nota:'2 colheres (sopa) ≈ 40 g de 1 lata (395 g)' },
+      { id:'f3', nome:'Granulado de chocolate', unidade:'g', usada:120, comprada:150, custoTotal:'', nota:'Estimativa da receita original: ~1 a 2 colheres por pote (10 potes)' },
+    ],
+    embalagemPote: ''
+  },
+  final: {
+    comissaoEntregador: 15,
+    taxaMaquininha: 3.2,
+    precoVenda: ''
+  }
+};
+
+const BRL = v => { const n = Number(v); return 'R$ ' + (isFinite(n) ? n.toFixed(2).replace('.', ',') : '0,00'); };
+const num = v => { const n = parseFloat(String(v).replace(',', '.')); return isFinite(n) ? n : 0; };
+
+function custoReceita(ing){
+  const comprada = num(ing.comprada);
+  if (!comprada) return 0;
+  return (num(ing.usada) / comprada) * num(ing.custoTotal);
+}
+
+/* ============ RENDER ============ */
+function ingredientCardHTML(ing){
+  return `
+    <div class="card" data-ing="${ing.id}">
+      <div class="ing-name">🥣 ${ing.nome}${ing.unidade ? ` <span style="font-weight:400;color:var(--cocoa-soft);font-size:12px;">(${ing.unidade})</span>` : ''}</div>
+      ${ing.nota ? `<div class="ing-note">${ing.nota}</div>` : ''}
+      <div class="field-row">
+        <div class="field">
+          <label>Qtd. usada</label>
+          <div class="input-wrap"><input type="text" inputmode="decimal" class="numeric-input" data-field="usada" data-ing="${ing.id}" value="${ing.usada}"></div>
+        </div>
+        <div class="field">
+          <label>Qtd. comprada</label>
+          <div class="input-wrap"><input type="text" inputmode="decimal" class="numeric-input" data-field="comprada" data-ing="${ing.id}" value="${ing.comprada}"></div>
+        </div>
+        <div class="field">
+          <label>Preço pago</label>
+          <div class="input-wrap"><span class="prefix">R$</span><input type="text" inputmode="decimal" class="numeric-input with-prefix" data-field="custoTotal" data-ing="${ing.id}" value="${ing.custoTotal === '' ? '' : ing.custoTotal}" placeholder="0,00"></div>
+        </div>
+      </div>
+      <div class="result-line"><span>Custo na receita</span><span class="val" id="res-${ing.id}">—</span></div>
+    </div>`;
+}
+
+function findIngredient(id){
+  for (const list of [state.massa.ingredientes, state.recheio.ingredientes, state.finalizacao.ingredientes]){
+    const found = list.find(i => i.id === id);
+    if (found) return found;
+  }
+  return null;
+}
+
+function renderStaticLists(){
+  document.getElementById('massaIngredientes').innerHTML = state.massa.ingredientes.map(ingredientCardHTML).join('');
+  document.getElementById('recheioIngredientes').innerHTML = state.recheio.ingredientes.map(ingredientCardHTML).join('');
+  document.getElementById('finalizacaoIngredientes').innerHTML = state.finalizacao.ingredientes.map(ingredientCardHTML).join('');
+}
+
+/* ============ CÁLCULO PRINCIPAL ============ */
+function recalc(){
+  const potes = num(state.massa.potesProduzidos) || 1;
+
+  const custoTotalMassa = state.massa.ingredientes.reduce((s,i)=>s+custoReceita(i),0);
+  const custoUnitMassa = custoTotalMassa / potes;
+  state.massa.ingredientes.forEach(i => { document.getElementById('res-'+i.id).textContent = BRL(custoReceita(i)); });
+  document.getElementById('massaCustoTotal').textContent = BRL(custoTotalMassa);
+  document.getElementById('massaCustoUnit').textContent = BRL(custoUnitMassa);
+
+  const custoTotalRecheio = state.recheio.ingredientes.reduce((s,i)=>s+custoReceita(i),0);
+  const custoUnitRecheio = custoTotalRecheio / potes;
+  state.recheio.ingredientes.forEach(i => { document.getElementById('res-'+i.id).textContent = BRL(custoReceita(i)); });
+  document.getElementById('recheioCustoTotal').textContent = BRL(custoTotalRecheio);
+  document.getElementById('recheioCustoUnit').textContent = BRL(custoUnitRecheio);
+
+  const custoTotalFinalizacao = state.finalizacao.ingredientes.reduce((s,i)=>s+custoReceita(i),0);
+  const custoUnitFinalizacao = custoTotalFinalizacao / potes;
+  state.finalizacao.ingredientes.forEach(i => { document.getElementById('res-'+i.id).textContent = BRL(custoReceita(i)); });
+  document.getElementById('finalizacaoCustoTotal').textContent = BRL(custoTotalFinalizacao);
+  document.getElementById('finalizacaoCustoUnit').textContent = BRL(custoUnitFinalizacao);
+
+  const custoPote = num(state.finalizacao.embalagemPote);
+  const custoUnitario = custoUnitMassa + custoUnitRecheio + custoUnitFinalizacao + custoPote;
+
+  const comissao = num(state.final.comissaoEntregador) / 100;
+  const taxaCartao = num(state.final.taxaMaquininha) / 100;
+  const precoVenda = num(state.final.precoVenda);
+  const frete = precoVenda * comissao;
+  const taxa = precoVenda * taxaCartao;
+  const margemRS = precoVenda - custoUnitario;
+  const margemPct = precoVenda > 0 ? (margemRS / precoVenda) * 100 : 0;
+
+  document.getElementById('pf-massa').textContent = BRL(custoUnitMassa);
+  document.getElementById('pf-recheio').textContent = BRL(custoUnitRecheio);
+  document.getElementById('pf-finalizacao').textContent = BRL(custoUnitFinalizacao);
+  document.getElementById('pf-emb').textContent = BRL(custoPote);
+  document.getElementById('pf-custounit').textContent = BRL(custoUnitario);
+  document.getElementById('pf-frete').textContent = BRL(frete);
+  document.getElementById('pf-taxa').textContent = BRL(taxa);
+  document.getElementById('pf-margem').textContent = BRL(margemRS);
+  document.getElementById('pf-pct').textContent = margemPct.toFixed(1).replace('.', ',') + '% do preço';
+  document.getElementById('pf-banner').className = 'margin-banner ' + (margemRS >= 0 ? 'pos' : 'neg');
+
+  return {
+    nome:'Bolo no pote de brigadeiro',
+    potes, precoVenda, custoUnitMassa, custoUnitRecheio, custoUnitFinalizacao, custoPote,
+    custoUnitario, frete, taxa, margemRS, margemPct
+  };
+}
+
+/* ============ VALIDAÇÃO NUMÉRICA ============ */
+function sanitizeNumericInput(el){
+  let v = el.value.replace(/[^0-9.,]/g, '');
+  const parts = v.split(/[.,]/);
+  if (parts.length > 2) v = parts[0] + ',' + parts.slice(1).join('');
+  el.value = v;
+}
+
+let saveTimeout;
+function agendarSalvamento(){
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(salvarDados, 400);
+}
+
+document.addEventListener('input', (e) => {
+  const el = e.target;
+  if (!el.classList.contains('numeric-input')) return;
+  sanitizeNumericInput(el);
+
+  const ingId = el.dataset.ing;
+  const field = el.dataset.field;
+
+  if (el.id === 'potesProduzidos'){
+    state.massa.potesProduzidos = el.value;
+  } else if (el.id === 'embalagemPote'){
+    state.finalizacao.embalagemPote = el.value;
+  } else if (el.id === 'comissaoEntregador'){
+    state.final.comissaoEntregador = el.value;
+  } else if (el.id === 'taxaMaquininha'){
+    state.final.taxaMaquininha = el.value;
+  } else if (el.id === 'precoVenda'){
+    state.final.precoVenda = el.value;
+  } else if (ingId && field){
+    const ing = findIngredient(ingId);
+    if (ing) ing[field] = el.value;
+  }
+  recalc();
+  agendarSalvamento();
+});
+
+/* ============ PERSISTÊNCIA (localStorage) ============ */
+const STORAGE_KEY = 'bolo-pote-brigadeiro-v1';
+
+function coletarDadosPersistentes(){
+  return {
+    potesProduzidos: state.massa.potesProduzidos,
+    massa: state.massa.ingredientes.map(i => ({ id:i.id, usada:i.usada, comprada:i.comprada, custoTotal:i.custoTotal })),
+    recheio: state.recheio.ingredientes.map(i => ({ id:i.id, usada:i.usada, comprada:i.comprada, custoTotal:i.custoTotal })),
+    finalizacao: state.finalizacao.ingredientes.map(i => ({ id:i.id, usada:i.usada, comprada:i.comprada, custoTotal:i.custoTotal })),
+    embalagemPote: state.finalizacao.embalagemPote,
+    comissaoEntregador: state.final.comissaoEntregador,
+    taxaMaquininha: state.final.taxaMaquininha,
+    precoVenda: state.final.precoVenda,
+  };
+}
+
+function salvarDados(){
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(coletarDadosPersistentes()));
+    const badge = document.getElementById('saveBadge');
+    badge.classList.add('show');
+    clearTimeout(badge._hideTimeout);
+    badge._hideTimeout = setTimeout(() => badge.classList.remove('show'), 1800);
+  } catch(e){ /* localStorage indisponível (ex.: aba anônima) — segue sem salvar */ }
+}
+
+function restaurarDados(){
+  let raw;
+  try { raw = localStorage.getItem(STORAGE_KEY); } catch(e){ return; }
+  if (!raw) return;
+  let dados;
+  try { dados = JSON.parse(raw); } catch(e){ return; }
+
+  if (dados.potesProduzidos !== undefined) state.massa.potesProduzidos = dados.potesProduzidos;
+  if (dados.embalagemPote !== undefined) state.finalizacao.embalagemPote = dados.embalagemPote;
+  if (dados.comissaoEntregador !== undefined) state.final.comissaoEntregador = dados.comissaoEntregador;
+  if (dados.taxaMaquininha !== undefined) state.final.taxaMaquininha = dados.taxaMaquininha;
+  if (dados.precoVenda !== undefined) state.final.precoVenda = dados.precoVenda;
+
+  [['massa', state.massa.ingredientes], ['recheio', state.recheio.ingredientes], ['finalizacao', state.finalizacao.ingredientes]]
+    .forEach(([key, list]) => {
+      if (!Array.isArray(dados[key])) return;
+      dados[key].forEach(saved => {
+        const ing = list.find(i => i.id === saved.id);
+        if (ing){
+          if (saved.usada !== undefined) ing.usada = saved.usada;
+          if (saved.comprada !== undefined) ing.comprada = saved.comprada;
+          if (saved.custoTotal !== undefined) ing.custoTotal = saved.custoTotal;
+        }
+      });
+    });
+}
+
+document.getElementById('btnClear').addEventListener('click', () => {
+  if (!confirm('Isso vai apagar todos os valores salvos neste celular. Continuar?')) return;
+  try { localStorage.removeItem(STORAGE_KEY); } catch(e){}
+  location.reload();
+});
+
+/* ============ TABS ============ */
+const tabInfo = {
+  massa: { title:'Massa', sub:'Preencha o preço pago em cada ingrediente da massa de chocolate.' },
+  recheio: { title:'Recheio', sub:'Ingredientes do recheio de brigadeiro.' },
+  finalizacao: { title:'Calda e decoração', sub:'Calda, granulado/raspas e o pote de cada bolo.' },
+  final: { title:'Produto final', sub:'Preço de venda, custo unitário e margem do bolo no pote.' },
+};
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.tab;
+    document.getElementById('panel-' + tab).classList.add('active');
+    document.getElementById('tabHeadline').textContent = tabInfo[tab].title;
+    document.getElementById('tabSub').textContent = tabInfo[tab].sub;
+    window.scrollTo({top:0, behavior:'smooth'});
+  });
+});
+
+/* ============ GRÁFICO NATIVO NO PDF ============ */
+function desenharGraficoPdf(doc, r, marginX, yStart, larguraTotal){
+  const cores = {
+    massa:[217,138,61], recheio:[58,38,33], finalizacao:[168,64,92],
+    embalagem:[110,88,80], margem:[92,122,84], margemNeg:[168,64,92]
+  };
+  const alturaGrafico = 60;
+  const baseY = yStart + alturaGrafico;
+  const maxValor = Math.max(1, r.precoVenda, r.custoUnitario);
+
+  const larguraBarra = 34;
+  const gap = 26;
+  const xCusto = marginX + 15;
+  const xPreco = xCusto + larguraBarra + gap;
+
+  doc.setDrawColor(210);
+  doc.line(marginX, baseY, marginX + larguraTotal, baseY);
+
+  // Barra empilhada: custo unitário por componente
+  let yCursor = baseY;
+  const segmentosCusto = [
+    { v:r.custoUnitMassa, cor:cores.massa, label:'Massa' },
+    { v:r.custoUnitRecheio, cor:cores.recheio, label:'Recheio' },
+    { v:r.custoUnitFinalizacao, cor:cores.finalizacao, label:'Calda/decoração' },
+    { v:r.custoPote, cor:cores.embalagem, label:'Embalagem' },
+  ];
+  segmentosCusto.forEach(seg => {
+    const h = (seg.v / maxValor) * (alturaGrafico - 6);
+    const y = yCursor - h;
+    doc.setFillColor(...seg.cor);
+    doc.rect(xCusto, y, larguraBarra, h, 'F');
+    yCursor = y;
+  });
+  doc.setFontSize(7);
+  doc.setTextColor(40);
+  doc.text(r.custoUnitario.toFixed(2).replace('.', ','), xCusto + larguraBarra / 2, yCursor - 2, { align:'center' });
+  doc.text('Custo unitário', xCusto + larguraBarra / 2, baseY + 5, { align:'center' });
+
+  // Barra: preço de venda (custo + margem)
+  const hCusto = (r.custoUnitario / maxValor) * (alturaGrafico - 6);
+  const hMargem = (Math.max(r.margemRS, 0) / maxValor) * (alturaGrafico - 6);
+  doc.setFillColor(...cores.recheio);
+  doc.rect(xPreco, baseY - hCusto, larguraBarra, hCusto, 'F');
+  doc.setFillColor(...(r.margemRS >= 0 ? cores.margem : cores.margemNeg));
+  doc.rect(xPreco, baseY - hCusto - hMargem, larguraBarra, hMargem, 'F');
+  doc.setFontSize(7);
+  doc.text(r.precoVenda.toFixed(2).replace('.', ','), xPreco + larguraBarra / 2, baseY - hCusto - hMargem - 2, { align:'center' });
+  doc.text('Preço de venda', xPreco + larguraBarra / 2, baseY + 5, { align:'center' });
+
+  // legenda
+  const legendaY = baseY + 15;
+  const itensLegenda = [
+    { label:'Massa', cor:cores.massa }, { label:'Recheio', cor:cores.recheio },
+    { label:'Calda/decoração', cor:cores.finalizacao }, { label:'Embalagem', cor:cores.embalagem },
+    { label:'Margem (R$)', cor:cores.margem },
+  ];
+  let lx = marginX;
+  let ly = legendaY;
+  itensLegenda.forEach((item, idx) => {
+    if (idx === 3){ lx = marginX; ly += 6; }
+    doc.setFillColor(...item.cor);
+    doc.rect(lx, ly - 2.8, 3, 3, 'F');
+    doc.setFontSize(7.5);
+    doc.setTextColor(40);
+    doc.text(item.label, lx + 4.5, ly);
+    lx += doc.getTextWidth(item.label) + 14;
+  });
+
+  return ly + 8;
+}
+
+/* ============ PDF ============ */
+document.getElementById('btnPdf').addEventListener('click', () => {
+  const btn = document.getElementById('btnPdf');
+  const textoOriginal = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ Gerando...';
+
+  try {
+    if (!window.jspdf || !window.jspdf.jsPDF){
+      throw new Error('A biblioteca de PDF não carregou. Verifique sua conexão com a internet e tente novamente.');
+    }
+
+    const r = recalc();
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit:'mm', format:'a4' });
+    const marginX = 15;
+    const pageWidth = 210;
+    const contentWidth = pageWidth - marginX * 2;
+    let y = 18;
+
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(17);
+    doc.text('Relatório de Custo e Margem — Bolo no Pote', marginX, y);
+    y += 6;
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(9);
+    doc.setTextColor(110);
+    doc.text('Gerado em ' + new Date().toLocaleString('pt-BR'), marginX, y);
+    doc.setTextColor(20);
+    y += 10;
+
+    function sectionTitle(t){
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(12.5);
+      doc.text(t, marginX, y);
+      y += 2;
+      doc.setDrawColor(220);
+      doc.line(marginX, y, marginX + contentWidth, y);
+      y += 6;
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(9.5);
+    }
+    function row(label, value, bold){
+      if (y > 275){ doc.addPage(); y = 18; }
+      doc.setFont('helvetica', bold ? 'bold' : 'normal');
+      doc.text(label, marginX, y);
+      doc.text(value, marginX + contentWidth, y, { align:'right' });
+      y += 5.5;
+    }
+
+    sectionTitle('Custos diretos por ingrediente — Massa');
+    state.massa.ingredientes.forEach(i => row(i.nome, BRL(custoReceita(i))));
+    row('Custo total da massa', BRL(state.massa.ingredientes.reduce((s,i)=>s+custoReceita(i),0)), true);
+    row('Custo por pote (massa)', BRL(r.custoUnitMassa), true);
+    y += 3;
+
+    sectionTitle('Custos diretos por ingrediente — Recheio');
+    state.recheio.ingredientes.forEach(i => row(i.nome, BRL(custoReceita(i))));
+    row('Custo total do recheio', BRL(state.recheio.ingredientes.reduce((s,i)=>s+custoReceita(i),0)), true);
+    row('Custo por pote (recheio)', BRL(r.custoUnitRecheio), true);
+    y += 3;
+
+    if (y > 230){ doc.addPage(); y = 18; }
+    sectionTitle('Custos diretos por ingrediente — Calda e decoração');
+    state.finalizacao.ingredientes.forEach(i => row(i.nome, BRL(custoReceita(i))));
+    row('Pote (embalagem)', BRL(num(state.finalizacao.embalagemPote)));
+    row('Custo total (calda + decoração)', BRL(state.finalizacao.ingredientes.reduce((s,i)=>s+custoReceita(i),0)), true);
+    y += 3;
+
+    if (y > 220){ doc.addPage(); y = 18; }
+    sectionTitle('Produto final — custo unitário e margem');
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(10.5);
+    doc.text(r.nome, marginX, y);
+    y += 5.5;
+    doc.setFontSize(9.5);
+    row('  Preço de venda', BRL(r.precoVenda));
+    row('  Custo total (custo unitário)', BRL(r.custoUnitario), true);
+    row('  Margem de contribuição', BRL(r.margemRS) + '  (' + r.margemPct.toFixed(1).replace('.',',') + '%)', true);
+    y += 4;
+
+    if (y > 190){ doc.addPage(); y = 18; }
+    sectionTitle('Gráfico — custo por componente, preço e margem');
+    desenharGraficoPdf(doc, r, marginX, y, contentWidth);
+
+    doc.save('relatorio-custo-bolo-pote.pdf');
+  } catch (err) {
+    console.error(err);
+    alert('Não foi possível gerar o PDF: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = textoOriginal;
+  }
+});
+
+/* ============ INIT ============ */
+restaurarDados();
+renderStaticLists();
+// após restaurar, os valores dos inputs precisam refletir o estado restaurado
+document.querySelectorAll('.numeric-input[data-ing]').forEach(el => {
+  const ing = findIngredient(el.dataset.ing);
+  if (ing) el.value = ing[el.dataset.field] === '' ? '' : ing[el.dataset.field];
+});
+document.getElementById('potesProduzidos').value = state.massa.potesProduzidos;
+document.getElementById('embalagemPote').value = state.finalizacao.embalagemPote;
+document.getElementById('comissaoEntregador').value = state.final.comissaoEntregador;
+document.getElementById('taxaMaquininha').value = state.final.taxaMaquininha;
+document.getElementById('precoVenda').value = state.final.precoVenda;
+recalc();
+</script>
+</body>
+</html>
